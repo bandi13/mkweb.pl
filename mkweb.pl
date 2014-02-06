@@ -1,43 +1,17 @@
 #!/usr/bin/perl -w
 use strict;
-###############################################################################
-# mkweb.pl version 1.5
-# Written by Fekete Andras
-# Released under the GNU Public license.
-# You may modify this code but you are required to leave this header intact.
-# Also you must give me credit where credit is due. Other than that, feel free
-# to redistribute, modify, or just plain use this program.
-# If you find any bugs or changes you've made that you'd like to pass back to
-# me, drop me a line at "iamfeketeandras  (at) gmail d_o_t com"
-#
-# This program basically creates a website out of any pictures you may have
-# stored in a specified folder. I originally designed it for my personal
-# family photo collection. I have rewritten it to generate thumbnails in
-# a separate folder so it won't clutter your images. I have been planning
-# to make it place the HTML files in the Thumbnail folder aswell, but it
-# works and I don't really want to change it now.
-# 
-# You'll need need perl, image-magick(to generate thumbnails), and apache or
-# some other web server. This code was designed to run on a linux box, but
-# with a bit of tinkering, it should work on a Windows based system too.
-###############################################################################
 
-my $titleColor = "#60c0ff"; # title frame background color
-my $dirColor = "#bbddff"; # left frame background color
-my $indexColor = "#bbddff"; # right frame background color
-my $htmlRoot = "/~pictures"; # This string will get prepended to all links
-my $owner = "Andras \& Beth"; # This is the name that appears in thet title frame
+if(!defined($ARGV[0])) { print "Usage: $0 <folderName> [<ownerName> [<htmlRootDir>]]\n"; exit; }
 
-###############################################################################
-# DO NOT EDIT AFTER HERE UNLESS YOU KNOW WHAT YOU ARE DOING!!!
-# I don't really like commenting my code, so as the great Lance Boyle (Megarace) once said:
-# "And now, you are on your own Enforcer..."
-###############################################################################
-
-if(!defined($ARGV[0])) { print "Usage: $0 <folderName> [<HTMLRootDir> [<ownerName>]]\n"; exit; }
+my $titleColor = "#60c0ff";
+my $dirColor = "#bbddff";
+my $indexColor = "#bbddff";
 my $webfolder = $ARGV[0];
-if(defined($ARGV[1])) { $htmlRoot = $ARGV[1]; }
-if(defined($ARGV[2])) { $owner = $ARGV[2]; }
+my $htmlRoot = "/~pictures";
+my $owner = "Andras \& Beth";
+
+if(defined($ARGV[1])) { $owner = $ARGV[1]; }
+if(defined($ARGV[2])) { $htmlRoot = $ARGV[2]; }
 
 $webfolder =~ s/ /\\ /g;
 open(INDEX,">$webfolder/index.html") || die "Couldn't create $webfolder/index.html!";
@@ -130,7 +104,7 @@ sub parseDir {
 						s/\.gif$/\.png/;
 						s/\.bmp$/\.png/;
 						my $sm = $_;
-						if ((!-e "$webfolder/Thumbs/$relative/$sm") || (-M "$webfolder/Thumbs/$relative/$sm" > -M "$absolute/$lg")) { system("convert -geometry 300x400 \"$absolute/$lg\" \"$webfolder/Thumbs/$relative/$sm\"\n"); }
+						if (!-e "$webfolder/Thumbs/$relative/$sm") { system("convert -geometry 300x400 \"$absolute/$lg\" \"$webfolder/Thumbs/$relative/$sm\"\n"); }
 						print $FILES "<TD><a href=\"$lg\"><img src=\"$htmlRoot/Thumbs/$relative/$sm\"><\/a><\/TD>";
 					} else {
 						print $FILES "<TD><a href=\"$lg\">$lg<\/a><\/TD>";
