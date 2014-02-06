@@ -131,30 +131,26 @@ sub parseDir {
 				chmod(0644,"$absolute/$_");
 				if(!(/png/)) {
 					my $lg = $_;
-					s/[jJ][pP][gG]$/jpg/;
-					s/[jJ][pP][eE][gG]$/jpg/;
-					s/[pP][pP][mM]$/ppm/;
-					s/[gG][iI][fF]$/gif/;
-					s/[bB][mM][pP]$/bmp/;
-					if(/\.jpg$/ || /\.ppm$/ || /\.gif$/ || /\.bmp$/) {
-						s/\.jpg$/\.png/;
-						s/\.ppm$/\.png/;
-						s/\.gif$/\.png/;
-						s/\.bmp$/\.png/;
-						my $sm = $_;
-						if ((!-e "$thumbfol/$sm") || (-M "$thumbfol/$sm" > -M "$absolute/$lg")) { system("convert -geometry 300x400 \"$absolute/$lg\" \"$thumbfol/$sm\"\n"); }
+					if(/\.[jJ][pP][gG]$/ || /\.[jJ][pP][eE][gG]$/ || /\.[pP][pP][mM]$/ || /\.[gG][iI][fF]$/ || /\.[bB][mM][pP]$/) {
+						my $sm = $_ . ".png";
+						if ((!-e "$thumbfol/$sm") || (-M "$thumbfol/$sm" > -M "$absolute/$lg")) { system("convert -geometry 300x400 \"$absolute/$lg\" \"$thumbfol/$sm\""); }
 						print $FILES "<TD><a href=\"$htmlRoot/$relative/$lg\"><img src=\"$htmlRoot/Thumbs/$relative/$sm\"><\/a><\/TD>";
-					} else {
-						if(/\.[mM][pP]4$/) {
-							my $sm = $_ . ".avi";
-							if ((!-e "$thumbfol/$sm") || (-M "$thumbfol/$sm" > -M "$absolute/$lg")) {
-								print("Generating \"$absolute/$lg\"\n");
-								system("mencoder -ovc lavc -lavcopts vcodec=mpeg4:vbitrate=4000:abitrate=48 -vf scale=1024:768 -oac mp3lame -really-quiet -o \"$thumbfol/$sm\" \"$absolute/$lg\"\n");
-							}
-							print $FILES "<TD><a href=\"$htmlRoot/$relative/$lg\">$lg<\/a>\(<a href=\"$htmlRoot/Thumbs/$relative/$sm\">small<\/a>\)<\/TD>";
-						} else {
-							print $FILES "<TD><a href=\"$htmlRoot/$relative/$lg\">$lg<\/a><\/TD>";
+					} elsif((/\.[mM][pP][gG4]$/) || (/\.[aA][vV][iI]$/)) {
+						my $sm = $_ . ".avi";
+						if ((!-e "$thumbfol/$sm") || (-M "$thumbfol/$sm" > -M "$absolute/$lg")) {
+							print("Generating \"$absolute/$lg\"\n");
+							system("mencoder -ovc lavc -lavcopts vcodec=mpeg4:vbitrate=4000:abitrate=48 -vf scale=1024:768 -oac mp3lame -really-quiet -o \"$thumbfol/$sm\" \"$absolute/$lg\"");
 						}
+						my $smImg = $_ . ".png";
+						if ((!-e "$thumbfol/$smImg") || (-M "$thumbfol/$smImg" > -M "$absolute/$lg")) {
+							print("Generating \"$absolute/$lg\" thumbnail\n");
+							my $tmpFn = "/tmp/" . int(rand()*65535) . ".tmp";
+							my $trash = `ffmpeg -itsoffset -1 -i \"$absolute/$lg\" -vcodec mjpeg -vframes 1 -an -f rawvideo $tmpFn 2>&1`;
+							system("convert -geometry 300x400 $tmpFn \"$thumbfol/$smImg\" && rm $tmpFn");
+						}
+						print $FILES "<TD><a href=\"$htmlRoot/Thumbs/$relative/$sm\"><img src=\"$htmlRoot/Thumbs/$relative/$smImg\"><BR>$lg<\/a>\(<a href=\"$htmlRoot/$relative/$lg\">large<\/a>\)<\/TD>";
+					} else {
+						print $FILES "<TD><a href=\"$htmlRoot/$relative/$lg\">$lg<\/a><\/TD>";
 					}
 					if($i == 2) { print $FILES "<\/TR>\n<TR>\n"; $i = 0; } else { $i++; }
 				}
