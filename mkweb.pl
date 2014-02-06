@@ -1,7 +1,7 @@
 #!/usr/bin/perl -w
 use strict;
 ###############################################################################
-# mkweb.pl version 1.5
+# mkweb.pl version 1.6
 # Written by Fekete Andras
 # Released under the GNU Public license.
 # You may modify this code but you are required to leave this header intact.
@@ -117,43 +117,49 @@ sub parseDir {
 	my $WEBFOLDER;
 	opendir($WEBFOLDER,$absolute) || die "Couldn't open $absolute!";
 	foreach $_ (sort readdir($WEBFOLDER)) {
-		if( -d "$absolute/$_" ) {
-			if (!(/\.$/)) { # if not ".." || "."
-				chmod(0755,"$absolute/$_");
-				if(!/Thumbs/) {
-					print $DIRS "<BR>$counter : <A HREF=\"$_/main.html\" TARGET=\"MAIN\">$_<\/A>\n";
-					parseDir("$relative/$_",0);
-					$counter++;
-				}
+		if(/^\./) { # A hidden file/folder
+		} elsif( -d "$absolute/$_" ) { # a folder
+			chmod(0755,"$absolute/$_");
+			if(!/Thumbs/) {
+				print $DIRS "<BR>$counter : <A HREF=\"$_/main.html\" TARGET=\"MAIN\">$_<\/A>\n";
+				parseDir("$relative/$_",0);
+				$counter++;
 			}
-		} else {
-			if (!(/\.html$/) && !(/description\.txt$/)) {
-				chmod(0644,"$absolute/$_");
-				if(!(/png/)) {
-					my $lg = $_;
-					if(/\.[jJ][pP][gG]$/ || /\.[jJ][pP][eE][gG]$/ || /\.[pP][pP][mM]$/ || /\.[gG][iI][fF]$/ || /\.[bB][mM][pP]$/) {
-						my $sm = $_ . ".png";
-						if ((!-e "$thumbfol/$sm") || (-M "$thumbfol/$sm" > -M "$absolute/$lg")) { system("convert -geometry 300x400 \"$absolute/$lg\" \"$thumbfol/$sm\""); }
-						print $FILES "<TD><a href=\"$htmlRoot/$relative/$lg\"><img src=\"$htmlRoot/Thumbs/$relative/$sm\"><\/a><\/TD>";
-					} elsif((/\.[mM][pP][gG4]$/) || (/\.[aA][vV][iI]$/)) {
-						my $sm = $_ . ".avi";
-						if ((!-e "$thumbfol/$sm") || (-M "$thumbfol/$sm" > -M "$absolute/$lg")) {
-							print("Generating \"$absolute/$lg\"\n");
-							system("mencoder -ovc lavc -lavcopts vcodec=mpeg4:vbitrate=4000:abitrate=48 -vf scale=1024:768 -oac mp3lame -really-quiet -o \"$thumbfol/$sm\" \"$absolute/$lg\"");
+		} elsif((/\.html$/) || (/description\.txt$/)) { # webpage or description file
+		} else { # all other files
+			chmod(0644,"$absolute/$_");
+			if(!(/png/)) {
+				my $lg = $_;
+				if(/\.[jJ][pP][gG]$/ || /\.[jJ][pP][eE][gG]$/ || /\.[pP][pP][mM]$/ || /\.[gG][iI][fF]$/ || /\.[bB][mM][pP]$/) {
+					my $sm = $_ . ".png";
+					if ((!-e "$thumbfol/$sm") || (-M "$thumbfol/$sm" > -M "$absolute/$lg")) {
+						if(system("convert -geometry 300x400 \"$absolute/$lg\" \"$thumbfol/$sm\"") != 0) {
+							system("mv \"$absolute/$lg\" \"$absolute/$lg.bad\" && rm -f \"$thumbfol/$sm\"");
+							print("Found a bad file at: \"$absolute/$lg\"\n");
 						}
-						my $smImg = $_ . ".png";
-						if ((!-e "$thumbfol/$smImg") || (-M "$thumbfol/$smImg" > -M "$absolute/$lg")) {
-							print("Generating \"$absolute/$lg\" thumbnail\n");
-							my $tmpFn = "/tmp/" . int(rand()*65535) . ".tmp";
-							my $trash = `ffmpeg -itsoffset -1 -i \"$absolute/$lg\" -vcodec mjpeg -vframes 1 -an -f rawvideo $tmpFn 2>&1`;
-							system("convert -geometry 300x400 $tmpFn \"$thumbfol/$smImg\" && rm $tmpFn");
-						}
-						print $FILES "<TD><a href=\"$htmlRoot/Thumbs/$relative/$sm\"><img src=\"$htmlRoot/Thumbs/$relative/$smImg\"><BR>$lg<\/a>\(<a href=\"$htmlRoot/$relative/$lg\">large<\/a>\)<\/TD>";
-					} else {
-						print $FILES "<TD><a href=\"$htmlRoot/$relative/$lg\">$lg<\/a><\/TD>";
 					}
-					if($i == 2) { print $FILES "<\/TR>\n<TR>\n"; $i = 0; } else { $i++; }
+					print $FILES "<TD><a href=\"$htmlRoot/$relative/$lg\"><img src=\"$htmlRoot/Thumbs/$relative/$sm\"><\/a><\/TD>";
+				} elsif((/\.[mM][pP][gG4]$/) || (/\.[aA][vV][iI]$/)) {
+					my $sm = $_ . ".avi";
+					if ((!-e "$thumbfol/$sm") || (-M "$thumbfol/$sm" > -M "$absolute/$lg")) {
+						print("Generating \"$absolute/$lg\"\n");
+						system("mencoder -ovc lavc -lavcopts vcodec=mpeg4:vbitrate=4000:abitrate=48 -vf scale=1024:768 -oac mp3lame -really-quiet -o \"$thumbfol/$sm\" \"$absolute/$lg\"");
+					}
+					my $smImg = $_ . ".png";
+					if ((!-e "$thumbfol/$smImg") || (-M "$thumbfol/$smImg" > -M "$absolute/$lg")) {
+						print("Generating \"$absolute/$lg\" thumbnail\n");
+						my $tmpFn = "/tmp/" . int(rand()*65535) . ".tmp";
+						my $trash = `ffmpeg -itsoffset -1 -i \"$absolute/$lg\" -vcodec mjpeg -vframes 1 -an -f rawvideo $tmpFn 2>&1`;
+						if(system("convert -geometry 300x400 $tmpFn \"$thumbfol/$smImg\" && rm $tmpFn") != 0) {
+							system("mv \"$absolute/$lg\" \"$absolute/$lg.bad\" && rm -f \"$thumbfol/$sm\" \"$thumbfol/$smImg\"");
+							print("Found a bad file at: \"$absolute/$lg\"\n");
+						}
+					}
+					print $FILES "<TD><a href=\"$htmlRoot/Thumbs/$relative/$sm\"><img src=\"$htmlRoot/Thumbs/$relative/$smImg\"><BR>$lg<\/a>\(<a href=\"$htmlRoot/$relative/$lg\">large<\/a>\)<\/TD>";
+				} else {
+					print $FILES "<TD><a href=\"$htmlRoot/$relative/$lg\">$lg<\/a><\/TD>";
 				}
+				if($i == 2) { print $FILES "<\/TR>\n<TR>\n"; $i = 0; } else { $i++; }
 			}
 		}
 	}
