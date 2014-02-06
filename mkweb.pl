@@ -134,23 +134,26 @@ sub parseDir {
 					my $sm = $_ . ".png";
 					if ((!-e "$thumbfol/$sm") || (-M "$thumbfol/$sm" > -M "$absolute/$lg")) {
 						if(system("convert -geometry 300x400 \"$absolute/$lg\" \"$thumbfol/$sm\"") != 0) {
+							print "'$!' command exited with code: " . $?;
 							system("mv \"$absolute/$lg\" \"$absolute/$lg.bad\" && rm -f \"$thumbfol/$sm\"");
 							print("Found a bad file at: \"$absolute/$lg\"\n");
 						}
 					}
 					print $FILES "<TD><a href=\"$htmlRoot/$relative/$lg\"><img src=\"$htmlRoot/Thumbs/$relative/$sm\"><\/a><\/TD>";
-				} elsif((/\.[mM][pP][gG4]$/) || (/\.[aA][vV][iI]$/)) {
+				} elsif((/\.[mM][pP][gG4]$/) || (/\.[aA][vV][iI]$/) || (/\.[mM][oO][vV]$/)) {
 					my $sm = $_ . ".avi";
 					if ((!-e "$thumbfol/$sm") || (-M "$thumbfol/$sm" > -M "$absolute/$lg")) {
 						print("Generating \"$absolute/$lg\"\n");
-						system("mencoder -ovc lavc -lavcopts vcodec=mpeg4:vbitrate=4000:abitrate=48 -vf scale=1024:768 -oac mp3lame -really-quiet -o \"$thumbfol/$sm\" \"$absolute/$lg\"");
+						if(system("mencoder -ovc lavc -lavcopts vcodec=mpeg4:vbitrate=4000:abitrate=48 -vf scale=1024:768 -oac mp3lame -really-quiet -o \"$thumbfol/$sm\" \"$absolute/$lg\"") != 0) { print "'$!' command exited with code: " . $?; }
 					}
 					my $smImg = $_ . ".png";
 					if ((!-e "$thumbfol/$smImg") || (-M "$thumbfol/$smImg" > -M "$absolute/$lg")) {
 						print("Generating \"$absolute/$lg\" thumbnail\n");
 						my $tmpFn = "/tmp/" . int(rand()*65535) . ".tmp";
 						my $trash = `ffmpeg -itsoffset -1 -i \"$absolute/$lg\" -vcodec mjpeg -vframes 1 -an -f rawvideo $tmpFn 2>&1`;
+						if($? != 0) { print "'$!' command exited with code: " . $?; }
 						if(system("convert -geometry 300x400 $tmpFn \"$thumbfol/$smImg\" && rm $tmpFn") != 0) {
+							print "'$!' command exited with code: " . $?;
 							system("mv \"$absolute/$lg\" \"$absolute/$lg.bad\" && rm -f \"$thumbfol/$sm\" \"$thumbfol/$smImg\"");
 							print("Found a bad file at: \"$absolute/$lg\"\n");
 						}
