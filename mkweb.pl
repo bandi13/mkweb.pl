@@ -1,24 +1,60 @@
 #!/usr/bin/perl -w
 use strict;
+###############################################################################
+# mkweb.pl version 1.5
+# Written by Fekete Andras
+# Released under the GNU Public license.
+# You may modify this code but you are required to leave this header intact.
+# Also you must give me credit where credit is due. Other than that, feel free
+# to redistribute, modify, or just plain use this program.
+# If you find any bugs or changes you've made that you'd like to pass back to
+# me, drop me a line at "iamfeketeandras  (at) gmail d_o_t com"
+#
+# This program basically creates a website out of any pictures you may have
+# stored in a specified folder. I originally designed it for my personal
+# family photo collection. I have rewritten it to generate thumbnails in
+# a separate folder so it won't clutter your images. I have been planning
+# to make it place the HTML files in the Thumbnail folder aswell, but it
+# works and I don't really want to change it now.
+# 
+# You'll need need perl, image-magick(to generate thumbnails), and apache or
+# some other web server. This code was designed to run on a linux box, but
+# with a bit of tinkering, it should work on a Windows based system too.
+###############################################################################
 
-if(!defined($ARGV[0])) { print "Usage: $0 <folderName> [<ownerName> [<htmlRootDir>]]\n"; exit; }
+my $verbose = 0;
+my $titleColor = "#60c0ff"; # title frame background color
+my $dirColor = "#bbddff"; # left frame background color
+my $indexColor = "#bbddff"; # right frame background color
+my $htmlRoot = "/~pictures"; # This string will get prepended to all links
+my $owner = "Andras"; # This is the name that appears in thet title frame
 
-my $titleColor = "#60c0ff";
-my $dirColor = "#bbddff";
-my $indexColor = "#bbddff";
+###############################################################################
+# DO NOT EDIT AFTER HERE UNLESS YOU KNOW WHAT YOU ARE DOING!!!
+# I don't really like commenting my code, so as the great Lance Boyle (Megarace) once said:
+# "And now, you are on your own Enforcer..."
+###############################################################################
+
+if(!defined($ARGV[0])) { print "Usage: $0 <folderName> [-v [<HTMLRootDir> [<ownerName>]]]\n"; exit; }
 my $webfolder = $ARGV[0];
-my $htmlRoot = "/~pictures";
-my $owner = "Andras \& Beth";
-
-if(defined($ARGV[1])) { $owner = $ARGV[1]; }
-if(defined($ARGV[2])) { $htmlRoot = $ARGV[2]; }
+if(defined($ARGV[1])) {
+	if($ARGV[1] eq "-v") {
+		$verbose = 1;
+		if(defined($ARGV[2])) { $htmlRoot = $ARGV[2]; }
+		if(defined($ARGV[3])) { $owner = $ARGV[3]; }
+	}
+	else {
+		$htmlRoot = $ARGV[1];
+		if(defined($ARGV[2])) { $owner = $ARGV[2]; }
+	}
+}
 
 $webfolder =~ s/ /\\ /g;
 open(INDEX,">$webfolder/index.html") || die "Couldn't create $webfolder/index.html!";
 print INDEX "<HTML>\n<TITLE>$owner\'s pictures<\/TITLE>\n\n";
 print INDEX "	<FRAMESET ROWS=\"5%,95%\">\n";
 print INDEX "		<FRAME NAME=\"TITLE\" SRC=\"title.html\">\n";
-print INDEX "		<FRAME NAME=\"MAIN\" SRC=\"main.html\">\n";
+print INDEX "		<FRAME NAME=\"MAIN\" SRC=\"Thumbs/main.html\">\n";
 print INDEX "	<\/FRAMESET>\n";
 print INDEX "	<NOFRAMES>Your browser doesn't support frames. Get a real one!</NOFRAMES>\n";
 print INDEX "<\/HTML>\n";
@@ -27,8 +63,8 @@ close(INDEX);
 open(MAIN,">$webfolder/main.html") || die "Couldn't create $webfolder/main.html";
 print MAIN "<HTML>\n";
 print MAIN "	<FRAMESET COLS=\"23%,77%\">\n";
-print MAIN "		<FRAME NAME=\"DIRECTORIES\" SRC=\"directories.html\">\n";
-print MAIN "		<FRAME NAME=\"FILES\" SRC=\"files.html\">\n";
+print MAIN "		<FRAME NAME=\"DIRECTORIES\" SRC=\"Thumbs/directories.html\">\n";
+print MAIN "		<FRAME NAME=\"FILES\" SRC=\"Thumbs/files.html\">\n";
 print MAIN "	<\/FRAMESET>\n";
 print MAIN "<\/HTML>\n";
 close(MAIN);
@@ -45,12 +81,13 @@ sub parseDir {
 	my $relative = shift;
 	my $absolute = "$webfolder/$relative";
 	my $parent = shift;
-	printf "$absolute >\n";
-	if(!-e "$webfolder/Thumbs/$relative") { mkdir("$webfolder/Thumbs/$relative",0755); }
+	if($verbose) { printf "$absolute >\n"; }
+	my $thumbfol = "$webfolder/Thumbs/$relative";
+	if(!-e "$thumbfol") { mkdir("$thumbfol",0755); }
 	system("rm -f \"$absolute\"/*.thm \"$absolute\"/*.THM \"$absolute\"/Thumbs.db");
-	if(!-e "$absolute/main.html") {
+	if(!-e "$thumbfol/main.html") {
 		my $MAIN;
-		open($MAIN,">$absolute/main.html") || die "Couldn't create $absolute/main.html";
+		open($MAIN,">$thumbfol/main.html") || die "Couldn't create $thumbfol/main.html";
 		print $MAIN "<HTML>\n";
 		print $MAIN "	<FRAMESET COLS=\"23%,77%\">\n";
 		print $MAIN "		<FRAME NAME=\"DIRECTORIES\" SRC=\"directories.html\">\n";
@@ -60,12 +97,12 @@ sub parseDir {
 		close($MAIN);
 	}
 	my $DIRS;
-	open($DIRS,">$absolute/directories.html") || die "Couldn't create $absolute/directories.html!";
+	open($DIRS,">$thumbfol/directories.html") || die "Couldn't create $thumbfol/directories.html!";
 	print $DIRS "<HTML>\n<BODY BGCOLOR=\"$dirColor\">\n";
 	if($parent != 1) { print $DIRS "<BR><A HREF=\"../main.html\" TARGET=\"MAIN\">Parent folder<\/A>\n"; }
 	my $counter = 1;
 	my $FILES;
-	open($FILES,">$absolute/files.html") || die "Couldn't create $absolute/files.html!";
+	open($FILES,">$thumbfol/files.html") || die "Couldn't create $thumbfol/files.html!";
 	print $FILES "<HTML>\n<BODY BGCOLOR=\"$indexColor\">\n";
 	if(-e "$absolute/description.txt") {
 		my $DESC;
@@ -77,8 +114,9 @@ sub parseDir {
 	}
 	print $FILES "<TABLE BORDER=\"1\">\n<TR>";
 	my $i = 0;
-	opendir(WEBFOLDER,$absolute) || die "Couldn't open $absolute!";
-	foreach $_ (sort readdir(WEBFOLDER)) {
+	my $WEBFOLDER;
+	opendir($WEBFOLDER,$absolute) || die "Couldn't open $absolute!";
+	foreach $_ (sort readdir($WEBFOLDER)) {
 		if( -d "$absolute/$_" ) {
 			if (!(/\.$/)) { # if not ".." || "."
 				chmod(0755,"$absolute/$_");
@@ -104,17 +142,26 @@ sub parseDir {
 						s/\.gif$/\.png/;
 						s/\.bmp$/\.png/;
 						my $sm = $_;
-						if (!-e "$webfolder/Thumbs/$relative/$sm") { system("convert -geometry 300x400 \"$absolute/$lg\" \"$webfolder/Thumbs/$relative/$sm\"\n"); }
-						print $FILES "<TD><a href=\"$lg\"><img src=\"$htmlRoot/Thumbs/$relative/$sm\"><\/a><\/TD>";
+						if ((!-e "$thumbfol/$sm") || (-M "$thumbfol/$sm" > -M "$absolute/$lg")) { system("convert -geometry 300x400 \"$absolute/$lg\" \"$thumbfol/$sm\"\n"); }
+						print $FILES "<TD><a href=\"$htmlRoot/$relative/$lg\"><img src=\"$htmlRoot/Thumbs/$relative/$sm\"><\/a><\/TD>";
 					} else {
-						print $FILES "<TD><a href=\"$lg\">$lg<\/a><\/TD>";
+						if(/\.[mM][pP]4$/) {
+							my $sm = $_ . ".avi";
+							if ((!-e "$thumbfol/$sm") || (-M "$thumbfol/$sm" > -M "$absolute/$lg")) {
+								print("Generating \"$absolute/$lg\"\n");
+								system("mencoder -ovc lavc -lavcopts vcodec=mpeg4:vbitrate=4000:abitrate=48 -vf scale=1024:768 -oac mp3lame -really-quiet -o \"$thumbfol/$sm\" \"$absolute/$lg\"\n");
+							}
+							print $FILES "<TD><a href=\"$htmlRoot/$relative/$lg\">$lg<\/a>\(<a href=\"$htmlRoot/Thumbs/$relative/$sm\">small<\/a>\)<\/TD>";
+						} else {
+							print $FILES "<TD><a href=\"$htmlRoot/$relative/$lg\">$lg<\/a><\/TD>";
+						}
 					}
 					if($i == 2) { print $FILES "<\/TR>\n<TR>\n"; $i = 0; } else { $i++; }
 				}
 			}
 		}
 	}
-	closedir(WEBFOLDER);
+	closedir($WEBFOLDER);
 	if($i != 0) { print $FILES "<\/TR>\n"; }
 	print $FILES "<\/TABLE><\/BODY>\n<\/HTML>\n";
 	close($FILES);
